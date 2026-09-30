@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#095467">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="野鳥野帳">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>野鳥ラインセンサス野帳</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#eaf0ec;--card:#fff;--fg:#14251b;--sub:#55665c;--ac:#2b5d44;--acfg:#fff;--bd:#c6d3ca;--warn:#b4530a}
+@media(prefers-color-scheme:dark){:root{--bg:#101a14;--card:#182620;--fg:#e4eee7;--sub:#93a89b;--ac:#6fc59a;--acfg:#0c1a12;--bd:#2c4035;--warn:#f0a35e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;padding:env(safe-area-inset-top) 0 calc(72px + env(safe-area-inset-bottom))}
+header{padding:14px 16px 4px}
+h1{font-size:19px;margin:0}
+.sub{color:var(--sub);font-size:13px}
+section{display:none;padding:8px 14px}
+section.on{display:block}
+label{display:block;font-size:13px;color:var(--sub);margin:10px 0 3px}
+input,select,textarea{width:100%;font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:10px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+button{font:inherit;border:1px solid var(--ac);background:var(--card);color:var(--ac);border-radius:8px;padding:10px 14px}
+button.p{background:var(--ac);color:var(--acfg);font-weight:600;width:100%;margin-top:14px;padding:13px}
+button.s{padding:8px 10px;font-size:13px;flex:0 0 auto}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;border-radius:0;padding:14px 4px;background:none;color:var(--sub)}
+nav button.on{color:var(--ac);font-weight:700;box-shadow:inset 0 3px var(--ac)}
+.item{background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--ac);border-radius:8px;padding:8px 10px;margin:8px 0;display:flex;gap:8px;align-items:flex-start}
+.item.env{border-left-color:var(--warn)}
+.item div{flex:1;font-size:14px}.item b{font-size:16px}
+.item .x{border:0;color:var(--warn);padding:2px 8px}
+.gps{font-size:13px;color:var(--sub);margin-top:6px}
+#msg{min-height:20px;font-size:13px;color:var(--warn);margin-top:6px}
+h2{font-size:16px;margin:16px 0 4px}
+</style>
+</head>
+<body>
+<header><h1>野鳥ラインセンサス野帳</h1><div class="sub">入力は自動保存。電波がなくても記録できます。</div></header>
+
+<section id="t0" class="on">
+<label>調査日</label><input type="date" id="date">
+<label>山名</label><input id="mountain">
+<label>ルート</label><input id="route" placeholder="例: 登山口〜山頂〜尾根">
+<label>調査者</label><input id="members">
+<div class="row">
+<div><label>開始時刻</label><div class="row"><input type="time" id="start"><button class="s" data-now="start">今</button></div></div>
+<div><label>終了時刻</label><div class="row"><input type="time" id="end"><button class="s" data-now="end">今</button></div></div>
+</div>
+<div class="row">
+<div><label>天気</label><select id="weather"><option></option><option>快晴</option><option>晴れ</option><option>薄曇り</option><option>曇り</option><option>霧</option><option>小雨</option><option>雨</option></select></div>
+<div><label>風</label><select id="wind"><option></option><option>無風</option><option>弱い</option><option>やや強い</option><option>強い</option></select></div>
+</div>
+<div class="row">
+<div><label>気温(℃)</label><input type="number" inputmode="decimal" id="temp"></div>
+<div><label>総歩行距離(km)</label><input type="number" inputmode="decimal" id="dist"></div>
+</div>
+<label>調査全体のメモ(見落とし・聞き取りにくかった条件など)</label><textarea id="note" rows="3"></textarea>
+</section>
+
+<section id="t1">
+<label>種名</label><input id="sp" list="spl" placeholder="入力して候補から選択" autocomplete="off">
+<datalist id="spl"></datalist>
+<div class="row">
+<div><label>個体数</label><input type="number" inputmode="numeric" id="cnt" value="1" min="1"></div>
+<div><label>確認方法</label><select id="how"><option>鳴き声</option><option>視認</option><option>視認+鳴き声</option><option>飛翔</option></select></div>
+</div>
+<div class="row">
+<div><label>雌雄・成幼</label><select id="sex"><option>不明</option><option>雄</option><option>雌</option><option>幼鳥</option><option>群れ</option></select></div>
+<div><label>行動</label><select id="beh"><option>さえずり</option><option>地鳴き</option><option>採餌</option><option>飛翔</option><option>繁殖行動</option><option>その他</option></select></div>
+</div>
+<div class="row">
+<div><label>区間</label><input id="seg" placeholder="例: 3"></div>
+<div><label>ルートからの距離(m)</label><input type="number" inputmode="numeric" id="off"></div>
+</div>
+<label>メモ(同定に不確実なら「○○？」と記入)</label><input id="bmemo">
+<button class="p" id="addBird">記録する(時刻・位置を自動取得)</button>
+<div class="gps" id="gpsB"></div><div id="msg"></div>
+<h2>今日の鳥記録 <span id="nB"></span></h2><div id="lB"></div>
+</section>
+
+<section id="t2">
+<div class="row">
+<div><label>植生</label><select id="veg"><option>ブナ林</option><option>ミズナラ林</option><option>落葉広葉樹林</option><option>針葉樹林</option><option>混交林</option><option>ササ原</option><option>低木・ハイマツ</option><option>草地</option><option>岩場</option><option>その他</option></select></div>
+<div><label>区間</label><input id="eseg"></div>
+</div>
+<label>林の状態・下草・水場</label><input id="estate">
+<label>餌資源(開花・結実・昆虫)</label><input id="efood">
+<label>人為的影響(登山者数・整備・シカの食痕など)</label><input id="ehum">
+<button class="p" id="addEnv">環境を記録する(時刻・位置を自動取得)</button>
+<h2>環境記録 <span id="nE"></span></h2><div id="lE"></div>
+</section>
+
+<section id="t3">
+<p class="sub">鳥・環境・調査概要を1つのExcelファイルにまとめます。調査後、すぐに出力してください。</p>
+<button class="p" id="exp">Excelで出力</button>
+<button class="p" id="expCsv" style="background:var(--card);color:var(--ac)">CSVで出力(予備)</button>
+<div class="gps" id="sum"></div>
+<button class="s" id="clr" style="margin-top:28px;color:var(--warn);border-color:var(--warn)">全データを消去</button>
+</section>
+
+<nav><button class="on" data-t="t0">調査情報</button><button data-t="t1">鳥</button><button data-t="t2">環境</button><button data-t="t3">出力</button></nav>
+
+<script>
+const $=s=>document.querySelector(s),KEY='birdCensusV1';
+const SP='ウグイス,ヒヨドリ,シジュウカラ,ヤマガラ,コガラ,ヒガラ,エナガ,メジロ,ゴジュウカラ,キバシリ,コゲラ,アオゲラ,アカゲラ,オオアカゲラ,クロツグミ,アカハラ,トラツグミ,コマドリ,ルリビタキ,コルリ,キビタキ,オオルリ,ミソサザイ,カワガラス,イワヒバリ,カヤクグリ,ビンズイ,センダイムシクイ,ホシガラス,カケス,ハシブトガラス,アオジ,ホオジロ,カワラヒワ,イカル,ウソ,ノスリ,クマタカ,カッコウ,ツツドリ,ホトトギス,ジュウイチ,キセキレイ,ヤマドリ'.split(',');
+$('#spl').innerHTML=SP.map(s=>`<option value="${s}">`).join('');
+const IDS=['date','mountain','route','members','start','end','weather','wind','temp','dist','note'];
+let D={info:{},birds:[],envs:[]};
+try{D=Object.assign(D,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}}
+const pad=n=>String(n).padStart(2,'0'),nowT=()=>{const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())};
+if(!D.info.date)D.info.date=new Date().toLocaleDateString('sv');
+IDS.forEach(k=>{const e=$('#'+k);e.value=D.info[k]||'';e.addEventListener('input',()=>{D.info[k]=e.value;save()})});
+document.querySelectorAll('[data-now]').forEach(b=>b.onclick=()=>{const k=b.dataset.now;D.info[k]=nowT().slice(0,5);$('#'+k).value=D.info[k];save()});
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button,section').forEach(x=>x.classList.remove('on'));b.classList.add('on');$('#'+b.dataset.t).classList.add('on');render()});
+function gps(){return new Promise(r=>{if(!navigator.geolocation)return r({});navigator.geolocation.getCurrentPosition(p=>r({lat:+p.coords.latitude.toFixed(6),lon:+p.coords.longitude.toFixed(6),alt:p.coords.altitude==null?'':Math.round(p.coords.altitude),acc:Math.round(p.coords.accuracy)}),()=>r({}),{enableHighAccuracy:true,timeout:10000,maximumAge:5000})})}
+const gtxt=g=>g.lat?`位置: ${g.lat}, ${g.lon} / 標高 ${g.alt===''?'不明':g.alt+'m'} / 誤差${g.acc}m`:'位置を取得できませんでした(時刻のみ記録)';
+async function add(kind,rec,gEl){
+  const g=await gps();Object.assign(rec,{time:nowT(),lat:g.lat||'',lon:g.lon||'',alt:g.alt===undefined?'':g.alt,acc:g.acc||''});
+  D[kind].push(rec);save();if(gEl)gEl.textContent=gtxt(g);render();
+}
+$('#addBird').onclick=async()=>{
+  const sp=$('#sp').value.trim();if(!sp){$('#msg').textContent='種名を入力してください';return}
+  $('#msg').textContent='';
+  await add('birds',{sp,cnt:+$('#cnt').value||1,how:$('#how').value,sex:$('#sex').value,beh:$('#beh').value,seg:$('#seg').value,off:$('#off').value,memo:$('#bmemo').value},$('#gpsB'));
+  $('#sp').value='';$('#cnt').value=1;$('#bmemo').value='';$('#sp').focus();
+};
+$('#addEnv').onclick=async()=>{
+  await add('envs',{veg:$('#veg').value,seg:$('#eseg').value,state:$('#estate').value,food:$('#efood').value,human:$('#ehum').value});
+  ['estate','efood','ehum'].forEach(k=>$('#'+k).value='');
+};
+function del(kind,i){if(confirm('この記録を削除しますか？')){D[kind].splice(i,1);save();render()}}
+function render(){
+  $('#nB').textContent=`(${D.birds.length}件)`;$('#nE').textContent=`(${D.envs.length}件)`;
+  $('#lB').innerHTML=D.birds.map((b,i)=>`<div class="item"><div><b>${b.sp}</b> ×${b.cnt}<br>${b.time} ${b.how}・${b.beh}・${b.sex}${b.seg?' ・区間'+b.seg:''}${b.alt!==''?' ・'+b.alt+'m':''}${b.memo?'<br>'+b.memo:''}</div><button class="x" onclick="del('birds',${i})">✕</button></div>`).reverse().join('')||'<p class="sub">まだ記録がありません。</p>';
+  $('#lE').innerHTML=D.envs.map((e,i)=>`<div class="item env"><div><b>${e.veg}</b> ${e.time}${e.seg?' ・区間'+e.seg:''}${e.alt!==''?' ・'+e.alt+'m':''}<br>${[e.state,e.food,e.human].filter(Boolean).join(' / ')}</div><button class="x" onclick="del('envs',${i})">✕</button></div>`).reverse().join('')||'<p class="sub">まだ記録がありません。</p>';
+  const sp=new Set(D.birds.map(b=>b.sp)),n=D.birds.reduce((a,b)=>a+b.cnt,0);
+  $('#sum').textContent=`確認種数 ${sp.size} / 総個体数 ${n} / 環境記録 ${D.envs.length}件`;
+}
+const HI=[['date','調査日'],['mountain','山名'],['route','ルート'],['members','調査者'],['start','開始時刻'],['end','終了時刻'],['weather','天気'],['wind','風'],['temp','気温(℃)'],['dist','総歩行距離(km)'],['note','メモ']];
+const HB=[['time','時刻'],['sp','種名'],['cnt','個体数'],['how','確認方法'],['sex','雌雄・成幼'],['beh','行動'],['seg','区間'],['off','ルートからの距離(m)'],['lat','緯度'],['lon','経度'],['alt','標高(m)'],['acc','位置誤差(m)'],['memo','メモ']];
+const HE=[['time','時刻'],['veg','植生'],['seg','区間'],['state','林の状態・下草・水場'],['food','餌資源'],['human','人為的影響'],['lat','緯度'],['lon','経度'],['alt','標高(m)'],['acc','位置誤差(m)']];
+const tab=(H,rows)=>rows.map(r=>Object.fromEntries(H.map(([k,l])=>[l,r[k]===undefined?'':r[k]])));
+const sheets=()=>[['調査概要',tab(HI,[D.info])],['鳥記録',tab(HB,D.birds)],['環境記録',tab(HE,D.envs)]];
+const fname=()=>`census_${D.info.date||''}_${D.info.mountain||'mountain'}`;
+$('#exp').onclick=()=>{
+  if(!window.XLSX){alert('Excel出力ライブラリを読み込めませんでした。電波のある場所で一度ページを開き直すか、CSV出力を使ってください。');return}
+  const wb=XLSX.utils.book_new();sheets().forEach(([n,r])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(r),n));
+  XLSX.writeFile(wb,fname()+'.xlsx');
+};
+$('#expCsv').onclick=()=>sheets().forEach(([n,r],i)=>setTimeout(()=>{
+  if(!r.length)return;const h=Object.keys(r[0]),q=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  const t='\ufeff'+[h.map(q).join(',')].concat(r.map(o=>h.map(k=>q(o[k])).join(','))).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download=`${fname()}_${n}.csv`;a.click();
+},i*400));
+$('#clr').onclick=()=>{if(confirm('すべての記録を消去します。Excel出力は済んでいますか？')){D={info:{date:new Date().toLocaleDateString('sv')},birds:[],envs:[]};save();IDS.forEach(k=>$('#'+k).value=D.info[k]||'');render()}};
+render();
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
