@@ -1,4 +1,4 @@
-const CACHE = 'bird-census-v2';
+const CACHE = 'bird-census-v3';
 const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
 const LOCAL = ['./', './index.html', './manifest.webmanifest', './species.js', './icon-192.png', './icon-512.png', './maskable-512.png', './apple-touch-icon.png'];
 
