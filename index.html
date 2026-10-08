@@ -12,7 +12,8 @@
 <meta name="apple-mobile-web-app-title" content="野鳥野帳">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>野鳥ラインセンサス野帳</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="species.js"></script>
 <style>
 :root{--bg:#eaf0ec;--card:#fff;--fg:#14251b;--sub:#55665c;--ac:#2b5d44;--acfg:#fff;--bd:#c6d3ca;--warn:#b4530a}
 @media(prefers-color-scheme:dark){:root{--bg:#101a14;--card:#182620;--fg:#e4eee7;--sub:#93a89b;--ac:#6fc59a;--acfg:#0c1a12;--bd:#2c4035;--warn:#f0a35e}}
@@ -98,10 +99,10 @@ h2{font-size:16px;margin:16px 0 4px}
 </section>
 
 <section id="t3">
-<p class="sub">鳥・環境・調査概要を1つのExcelファイルにまとめます。調査後、すぐに出力してください。</p>
+<p class="sub">鳥・環境・調査概要・地図(位置のプロット画像)を1つのExcelにまとめます。地図の取得にはネット接続が必要なので、下山後に電波のある場所で出力してください。調査後、すぐに出力してください。</p>
 <button class="p" id="exp">Excelで出力</button>
 <button class="p" id="expCsv" style="background:var(--card);color:var(--ac)">CSVで出力(予備)</button>
-<div class="gps" id="sum"></div>
+<div class="gps" id="expMsg"></div><div class="gps" id="sum"></div>
 <button class="s" id="clr" style="margin-top:28px;color:var(--warn);border-color:var(--warn)">全データを消去</button>
 </section>
 
@@ -109,7 +110,7 @@ h2{font-size:16px;margin:16px 0 4px}
 
 <script>
 const $=s=>document.querySelector(s),KEY='birdCensusV1';
-const SP='ウグイス,ヒヨドリ,シジュウカラ,ヤマガラ,コガラ,ヒガラ,エナガ,メジロ,ゴジュウカラ,キバシリ,コゲラ,アオゲラ,アカゲラ,オオアカゲラ,クロツグミ,アカハラ,トラツグミ,コマドリ,ルリビタキ,コルリ,キビタキ,オオルリ,ミソサザイ,カワガラス,イワヒバリ,カヤクグリ,ビンズイ,センダイムシクイ,ホシガラス,カケス,ハシブトガラス,アオジ,ホオジロ,カワラヒワ,イカル,ウソ,ノスリ,クマタカ,カッコウ,ツツドリ,ホトトギス,ジュウイチ,キセキレイ,ヤマドリ'.split(',');
+const SP=window.SPECIES||[];
 $('#spl').innerHTML=SP.map(s=>`<option value="${s}">`).join('');
 const IDS=['date','mountain','route','members','start','end','weather','wind','temp','dist','note'];
 let D={info:{},birds:[],envs:[]};
@@ -147,13 +148,48 @@ function render(){
 const HI=[['date','調査日'],['mountain','山名'],['route','ルート'],['members','調査者'],['start','開始時刻'],['end','終了時刻'],['weather','天気'],['wind','風'],['temp','気温(℃)'],['dist','総歩行距離(km)'],['note','メモ']];
 const HB=[['time','時刻'],['sp','種名'],['cnt','個体数'],['how','確認方法'],['sex','雌雄・成幼'],['beh','行動'],['seg','区間'],['off','ルートからの距離(m)'],['lat','緯度'],['lon','経度'],['alt','標高(m)'],['acc','位置誤差(m)'],['memo','メモ']];
 const HE=[['time','時刻'],['veg','植生'],['seg','区間'],['state','林の状態・下草・水場'],['food','餌資源'],['human','人為的影響'],['lat','緯度'],['lon','経度'],['alt','標高(m)'],['acc','位置誤差(m)']];
-const tab=(H,rows)=>rows.map(r=>Object.fromEntries(H.map(([k,l])=>[l,r[k]===undefined?'':r[k]])));
-const sheets=()=>[['調査概要',tab(HI,[D.info])],['鳥記録',tab(HB,D.birds)],['環境記録',tab(HE,D.envs)]];
+const tab=(H,rows,no=1)=>rows.map((r,i)=>Object.fromEntries((no?[['No.',i+1]]:[]).concat(H.map(([k,l])=>[l,r[k]===undefined?'':r[k]]))));
+const sheets=()=>[['調査概要',tab(HI,[D.info],0)],['鳥記録',tab(HB,D.birds)],['環境記録',tab(HE,D.envs)]];
 const fname=()=>`census_${D.info.date||''}_${D.info.mountain||'mountain'}`;
-$('#exp').onclick=()=>{
-  if(!window.XLSX){alert('Excel出力ライブラリを読み込めませんでした。電波のある場所で一度ページを開き直すか、CSV出力を使ってください。');return}
-  const wb=XLSX.utils.book_new();sheets().forEach(([n,r])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(r),n));
-  XLSX.writeFile(wb,fname()+'.xlsx');
+let mapMode='';
+async function drawMap(){
+  const P=[];
+  D.birds.forEach((b,i)=>b.lat!==''&&b.lat!==undefined&&P.push({x:b.lon,y:b.lat,n:i+1,k:0}));
+  D.envs.forEach((b,i)=>b.lat!==''&&b.lat!==undefined&&P.push({x:b.lon,y:b.lat,n:i+1,k:1}));
+  if(!P.length)return null;
+  const W=1000,H=750,T=256,pad=90;
+  const px=(lo,z)=>(lo+180)/360*T*2**z,py=(la,z)=>{const s=Math.sin(la*Math.PI/180);return(0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*T*2**z};
+  const xs=P.map(p=>p.x),ys=P.map(p=>p.y),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+  let z=16;while(z>5&&(Math.abs(px(x1,z)-px(x0,z))>W-2*pad||Math.abs(py(y0,z)-py(y1,z))>H-2*pad))z--;
+  const ox=(px(x0,z)+px(x1,z))/2-W/2,oy=(py(y0,z)+py(y1,z))/2-H/2;
+  const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  g.fillStyle='#e8eeea';g.fillRect(0,0,W,H);
+  let ok=0;const jobs=[];
+  for(let ty=Math.floor(oy/T);ty<=Math.floor((oy+H)/T);ty++)for(let tx=Math.floor(ox/T);tx<=Math.floor((ox+W)/T);tx++)jobs.push(new Promise(res=>{
+    const im=new Image(),t=setTimeout(res,8000);im.crossOrigin='anonymous';
+    im.onload=()=>{clearTimeout(t);g.drawImage(im,tx*T-ox,ty*T-oy);ok++;res()};
+    im.onerror=()=>{clearTimeout(t);res()};
+    im.src=`https://cyberjapandata.gsi.go.jp/xyz/std/${z}/${tx}/${ty}.png`}));
+  await Promise.all(jobs);mapMode=ok?'tile':'plain';
+  g.font='12px sans-serif';g.textBaseline='middle';
+  if(!ok){g.strokeStyle='#c6d3ca';g.lineWidth=1;for(let i=0;i<W;i+=100){g.beginPath();g.moveTo(i,0);g.lineTo(i,H);g.stroke()}for(let i=0;i<H;i+=100){g.beginPath();g.moveTo(0,i);g.lineTo(W,i);g.stroke()}g.fillStyle='#55665c';g.textAlign='left';g.fillText('地図を取得できないため位置のみ表示 (縮尺 z'+z+')',10,H-12)}
+  P.forEach(p=>{const X=px(p.x,z)-ox,Y=py(p.y,z)-oy;g.beginPath();if(p.k)g.rect(X-11,Y-11,22,22);else g.arc(X,Y,11,0,7);g.fillStyle=p.k?'#d9640f':'#1b7f4b';g.fill();g.lineWidth=2.5;g.strokeStyle='#fff';g.stroke();g.fillStyle='#fff';g.font='bold 12px sans-serif';g.textAlign='center';g.fillText(p.n,X,Y)});
+  if(ok){g.fillStyle='rgba(255,255,255,.85)';g.fillRect(W-130,H-22,130,22);g.fillStyle='#333';g.font='12px sans-serif';g.textAlign='right';g.fillText('地図: 地理院タイル',W-6,H-11)}
+  return c.toDataURL('image/png');
+}
+$('#exp').onclick=async()=>{
+  if(!window.ExcelJS){alert('Excel出力ライブラリを読み込めませんでした。電波のある場所で開き直すか、CSV出力を使ってください。');return}
+  const m=$('#expMsg');m.textContent='作成中…(地図の取得にはネット接続が必要です)';
+  try{
+    const wb=new ExcelJS.Workbook();
+    sheets().forEach(([n,r])=>{const ws=wb.addWorksheet(n);if(!r.length)return;const h=Object.keys(r[0]);ws.columns=h.map(k=>({header:k,key:k,width:Math.max(8,k.length*2+2)}));ws.addRows(r);ws.getRow(1).font={bold:true};ws.views=[{state:'frozen',ySplit:1}]});
+    const url=await drawMap(),ws=wb.addWorksheet('地図');
+    if(url){ws.getCell('A1').value='● 鳥の記録 / ■ 環境の記録(番号は各シートのNo.)';ws.addImage(wb.addImage({base64:url,extension:'png'}),{tl:{col:0,row:2},ext:{width:800,height:600}})}
+    else ws.getCell('A1').value='位置情報のある記録がありません。';
+    const buf=await wb.xlsx.writeBuffer(),a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=fname()+'.xlsx';a.click();
+    m.textContent='出力しました'+(mapMode==='plain'?'(地図を取得できず簡易プロットで出力)':'');
+  }catch(e){m.textContent='出力に失敗しました: '+e.message}
 };
 $('#expCsv').onclick=()=>sheets().forEach(([n,r],i)=>setTimeout(()=>{
   if(!r.length)return;const h=Object.keys(r[0]),q=v=>'"'+String(v).replace(/"/g,'""')+'"';

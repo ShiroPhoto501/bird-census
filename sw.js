@@ -1,6 +1,6 @@
-const CACHE = 'bird-census-v1';
-const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-const LOCAL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './maskable-512.png', './apple-touch-icon.png'];
+const CACHE = 'bird-census-v2';
+const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+const LOCAL = ['./', './index.html', './manifest.webmanifest', './species.js', './icon-192.png', './icon-512.png', './maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
@@ -19,7 +19,7 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
+  if (e.request.method !== 'GET' || e.request.url.includes('gsi.go.jp')) return;
   e.respondWith((async () => {
     const c = await caches.open(CACHE);
     const hit = await c.match(e.request, { ignoreSearch: true });
