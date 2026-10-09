@@ -1,12 +1,13 @@
-const CACHE = 'bird-census-v3';
+const CACHE = 'bird-census-v5';
 const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
-const LOCAL = ['./', './index.html', './manifest.webmanifest', './species.js', './icon-192.png', './icon-512.png', './maskable-512.png', './apple-touch-icon.png'];
+const EXT = [XLSX_URL, 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'];
+const LOCAL = ['./', './index.html', './manifest.webmanifest', './species.js', './sel-point.png', './sel-line.png', './icon-192.png', './icon-512.png', './maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const c = await caches.open(CACHE);
     await c.addAll(LOCAL);
-    try { await c.put(XLSX_URL, await fetch(XLSX_URL, { mode: 'no-cors' })); } catch (_) {}
+    for (const u of EXT) { try { await c.put(u, await fetch(u, { mode: 'no-cors' })); } catch (_) {} }
     self.skipWaiting();
   })());
 });

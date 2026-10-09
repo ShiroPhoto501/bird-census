@@ -11,7 +11,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="野鳥野帳">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>野鳥ラインセンサス野帳</title>
+<title>野鳥野帳</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="species.js"></script>
 <style>
@@ -40,14 +42,28 @@ nav button.on{color:var(--ac);font-weight:700;box-shadow:inset 0 3px var(--ac)}
 .gps{font-size:13px;color:var(--sub);margin-top:6px}
 #msg{min-height:20px;font-size:13px;color:var(--warn);margin-top:6px}
 h2{font-size:16px;margin:16px 0 4px}
+[hidden]{display:none!important}
+#home{min-height:100dvh;padding:calc(24px + env(safe-area-inset-top)) 14px;display:flex;flex-direction:column;justify-content:center}
+.hc{display:flex;gap:12px;margin-top:18px}
+.hc button{flex:1;padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;border-radius:14px;border-color:var(--bd);background:var(--card)}
+.hc img{width:100%;max-width:170px;height:auto}.hc b{color:var(--fg)}.hc span{font-size:12px;color:var(--sub)}
+#pt{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+.ps{display:none}.ps.on{display:block}.pb{padding:6px 14px}
+#mapw{position:sticky;top:0;z-index:5;height:44dvh;border-bottom:1px solid var(--bd)}
+#map{height:100%}#pLoc{position:absolute;right:10px;bottom:10px;z-index:1000}
+.pin{width:26px;height:26px;border-radius:50%;background:#1b7f4b;color:#fff;border:2.5px solid #fff;font:bold 12px/21px sans-serif;text-align:center;box-shadow:0 1px 4px #0006}
+.pin.new{background:#d9640f}
 </style>
 </head>
 <body>
-<header><h1>野鳥ラインセンサス野帳</h1><div class="sub">入力は自動保存。電波がなくても記録できます。</div></header>
+<div id="home"><h1>野鳥野帳</h1><p class="sub">観察の方法を選んでください</p>
+<div class="hc"><button data-go="pt"><img src="sel-point.png" alt=""><b>Point Census</b><span>定点観察</span></button><button data-go="ln"><img src="sel-line.png" alt=""><b>Line Census</b><span>ライン観察</span></button></div></div>
+<div id="ln" hidden>
+<header><button class="s" data-go="home" style="float:right">メニュー</button><h1>野鳥ラインセンサス野帳</h1><div class="sub">入力は自動保存。電波がなくても記録できます。</div></header>
 
 <section id="t0" class="on">
 <label>調査日</label><input type="date" id="date">
-<label>山名</label><input id="mountain">
+<label>観測場所（山名）</label><input id="mountain">
 <label>ルート</label><input id="route" placeholder="例: 登山口〜山頂〜尾根">
 <label>調査者</label><input id="members">
 <div class="row">
@@ -107,6 +123,40 @@ h2{font-size:16px;margin:16px 0 4px}
 </section>
 
 <nav><button class="on" data-t="t0">調査情報</button><button data-t="t1">鳥</button><button data-t="t2">環境</button><button data-t="t3">出力</button></nav>
+</div>
+
+<div id="pt" hidden>
+<header><button class="s" data-go="home" style="float:right">メニュー</button><h1>定点観察 (Point Census)</h1><div class="sub">地図をタップしてピンを立て、情報を入力して記録</div></header>
+<div class="ps on" id="ps0">
+<div id="mapw"><div id="map"></div><button id="pLoc" class="s">現在地へ</button></div>
+<div class="pb">
+<label>種名</label><input id="psp" list="spl" placeholder="入力して候補から選択" autocomplete="off">
+<div class="row"><div><label>個体数</label><input type="number" inputmode="numeric" id="pcnt" value="1" min="1"></div>
+<div><label>確認方法</label><select id="phow"><option>鳴き声</option><option>視認</option><option>視認+鳴き声</option><option>飛翔</option></select></div></div>
+<div class="row"><div><label>雌雄・成幼</label><select id="psex"><option>不明</option><option>雄</option><option>雌</option><option>幼鳥</option><option>群れ</option></select></div>
+<div><label>行動</label><select id="pbeh"><option>さえずり</option><option>地鳴き</option><option>採餌</option><option>飛翔</option><option>繁殖行動</option><option>その他</option></select></div></div>
+<label>観察者からの距離(m)</label><input type="number" inputmode="numeric" id="pdist">
+<label>メモ(同定に不確実なら「○○？」と記入)</label><input id="pmemo">
+<button class="p" id="pAdd">記録する</button><div id="pmsg" class="gps"></div>
+</div></div>
+<div class="ps pb" id="ps1">
+<label>観察日</label><input type="date" id="p_date">
+<label>観測場所（山名）</label><input id="p_site">
+<label>観察者</label><input id="p_members">
+<div class="row"><div><label>開始時刻</label><div class="row"><input type="time" id="p_start"><button class="s" data-pnow="start">今</button></div></div>
+<div><label>終了時刻</label><div class="row"><input type="time" id="p_end"><button class="s" data-pnow="end">今</button></div></div></div>
+<div class="row"><div><label>天気</label><select id="p_weather"><option></option><option>快晴</option><option>晴れ</option><option>薄曇り</option><option>曇り</option><option>霧</option><option>小雨</option><option>雨</option></select></div>
+<div><label>風</label><select id="p_wind"><option></option><option>無風</option><option>弱い</option><option>やや強い</option><option>強い</option></select></div></div>
+<label>気温(℃)</label><input type="number" inputmode="decimal" id="p_temp">
+<label>メモ</label><textarea id="p_note" rows="3"></textarea>
+</div>
+<div class="ps pb" id="ps2">
+<button class="p" id="pExp">Excelで出力</button><div class="gps" id="pExpMsg">地図の取得にはネット接続が必要です。</div><div class="gps" id="psum"></div>
+<h2>記録 <span id="pn"></span></h2><div id="pl"></div>
+<button class="s" id="pClr" style="margin-top:28px;color:var(--warn);border-color:var(--warn)">定点観察の記録を消去</button>
+</div>
+<nav id="pnav"><button class="on" data-t="ps0">観察</button><button data-t="ps1">調査情報</button><button data-t="ps2">一覧・出力</button></nav>
+</div>
 
 <script>
 const $=s=>document.querySelector(s),KEY='birdCensusV1';
@@ -120,7 +170,7 @@ const pad=n=>String(n).padStart(2,'0'),nowT=()=>{const d=new Date();return pad(d
 if(!D.info.date)D.info.date=new Date().toLocaleDateString('sv');
 IDS.forEach(k=>{const e=$('#'+k);e.value=D.info[k]||'';e.addEventListener('input',()=>{D.info[k]=e.value;save()})});
 document.querySelectorAll('[data-now]').forEach(b=>b.onclick=()=>{const k=b.dataset.now;D.info[k]=nowT().slice(0,5);$('#'+k).value=D.info[k];save()});
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button,section').forEach(x=>x.classList.remove('on'));b.classList.add('on');$('#'+b.dataset.t).classList.add('on');render()});
+document.querySelectorAll('#ln nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#ln nav button,#ln section').forEach(x=>x.classList.remove('on'));b.classList.add('on');$('#'+b.dataset.t).classList.add('on');render()});
 function gps(){return new Promise(r=>{if(!navigator.geolocation)return r({});navigator.geolocation.getCurrentPosition(p=>r({lat:+p.coords.latitude.toFixed(6),lon:+p.coords.longitude.toFixed(6),alt:p.coords.altitude==null?'':Math.round(p.coords.altitude),acc:Math.round(p.coords.accuracy)}),()=>r({}),{enableHighAccuracy:true,timeout:10000,maximumAge:5000})})}
 const gtxt=g=>g.lat?`位置: ${g.lat}, ${g.lon} / 標高 ${g.alt===''?'不明':g.alt+'m'} / 誤差${g.acc}m`:'位置を取得できませんでした(時刻のみ記録)';
 async function add(kind,rec,gEl){
@@ -145,17 +195,19 @@ function render(){
   const sp=new Set(D.birds.map(b=>b.sp)),n=D.birds.reduce((a,b)=>a+b.cnt,0);
   $('#sum').textContent=`確認種数 ${sp.size} / 総個体数 ${n} / 環境記録 ${D.envs.length}件`;
 }
-const HI=[['date','調査日'],['mountain','山名'],['route','ルート'],['members','調査者'],['start','開始時刻'],['end','終了時刻'],['weather','天気'],['wind','風'],['temp','気温(℃)'],['dist','総歩行距離(km)'],['note','メモ']];
+const HI=[['date','調査日'],['mountain','観測場所（山名）'],['route','ルート'],['members','調査者'],['start','開始時刻'],['end','終了時刻'],['weather','天気'],['wind','風'],['temp','気温(℃)'],['dist','総歩行距離(km)'],['note','メモ']];
 const HB=[['time','時刻'],['sp','種名'],['cnt','個体数'],['how','確認方法'],['sex','雌雄・成幼'],['beh','行動'],['seg','区間'],['off','ルートからの距離(m)'],['lat','緯度'],['lon','経度'],['alt','標高(m)'],['acc','位置誤差(m)'],['memo','メモ']];
 const HE=[['time','時刻'],['veg','植生'],['seg','区間'],['state','林の状態・下草・水場'],['food','餌資源'],['human','人為的影響'],['lat','緯度'],['lon','経度'],['alt','標高(m)'],['acc','位置誤差(m)']];
 const tab=(H,rows,no=1)=>rows.map((r,i)=>Object.fromEntries((no?[['No.',i+1]]:[]).concat(H.map(([k,l])=>[l,r[k]===undefined?'':r[k]]))));
 const sheets=()=>[['調査概要',tab(HI,[D.info],0)],['鳥記録',tab(HB,D.birds)],['環境記録',tab(HE,D.envs)]];
-const fname=()=>`census_${D.info.date||''}_${D.info.mountain||'mountain'}`;
+const outName=(d,p,k)=>`${(d||new Date().toLocaleDateString('sv')).replace(/-/g,'')}-${(p||'場所未入力').replace(/[\\/:*?"<>|\s]/g,'')}-${k}`;
+const fname=()=>outName(D.info.date,D.info.mountain,'LineCensus');
 let mapMode='';
-async function drawMap(){
-  const P=[];
+async function drawMap(P0){
+  const P=P0||[];if(!P0){
   D.birds.forEach((b,i)=>b.lat!==''&&b.lat!==undefined&&P.push({x:b.lon,y:b.lat,n:i+1,k:0}));
   D.envs.forEach((b,i)=>b.lat!==''&&b.lat!==undefined&&P.push({x:b.lon,y:b.lat,n:i+1,k:1}));
+  }
   if(!P.length)return null;
   const W=1000,H=750,T=256,pad=90;
   const px=(lo,z)=>(lo+180)/360*T*2**z,py=(la,z)=>{const s=Math.sin(la*Math.PI/180);return(0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*T*2**z};
@@ -198,6 +250,60 @@ $('#expCsv').onclick=()=>sheets().forEach(([n,r],i)=>setTimeout(()=>{
 },i*400));
 $('#clr').onclick=()=>{if(confirm('すべての記録を消去します。Excel出力は済んでいますか？')){D={info:{date:new Date().toLocaleDateString('sv')},birds:[],envs:[]};save();IDS.forEach(k=>$('#'+k).value=D.info[k]||'');render()}};
 render();
+D.pt=D.pt||{info:{},rows:[]};
+function show(id){['home','ln','pt'].forEach(x=>$('#'+x).hidden=x!==id);scrollTo(0,0);if(id=='pt')initPt()}
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>show(b.dataset.go));
+const PI=['date','site','members','start','end','weather','wind','temp','note'];
+if(!D.pt.info.date)D.pt.info.date=new Date().toLocaleDateString('sv');
+PI.forEach(k=>{const e=$('#p_'+k);e.value=D.pt.info[k]||'';e.addEventListener('input',()=>{D.pt.info[k]=e.value;save()})});
+document.querySelectorAll('[data-pnow]').forEach(b=>b.onclick=()=>{const k=b.dataset.pnow;D.pt.info[k]=nowT().slice(0,5);$('#p_'+k).value=D.pt.info[k];save()});
+document.querySelectorAll('#pnav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#pnav button,.ps').forEach(x=>x.classList.remove('on'));b.classList.add('on');$('#'+b.dataset.t).classList.add('on');if(b.dataset.t=='ps0'&&map)setTimeout(()=>map.invalidateSize(),50);prender()});
+let map,here,cur,pend,grp;
+const pinI=(n,c)=>L.divIcon({className:'',html:`<div class="pin ${c||''}">${n}</div>`,iconSize:[26,26],iconAnchor:[13,13]});
+function initPt(){
+  if(!window.L){$('#mapw').innerHTML='<p class="sub" style="padding:12px">地図ライブラリを読み込めません。電波のある場所で開き直してください。</p>';return}
+  if(!map){map=L.map('map').setView([36.2,138.2],5);
+    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',{maxZoom:18,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>'}).addTo(map);
+    grp=L.layerGroup().addTo(map);map.on('click',e=>setPend(e.latlng));pins();$('#pLoc').onclick=()=>locate(1)}
+  setTimeout(()=>map.invalidateSize(),50);locate(1);prender();
+}
+async function locate(c){
+  const g=await gps();
+  if(!g.lat){$('#pmsg').textContent='現在地を取得できませんでした。地図をタップしてピンを立てられます。';return}
+  cur=g;if(here)here.setLatLng([g.lat,g.lon]);else here=L.circleMarker([g.lat,g.lon],{radius:8,color:'#fff',weight:3,fillColor:'#2a6fdb',fillOpacity:1}).addTo(map);
+  if(c)map.setView([g.lat,g.lon],17);
+}
+function setPend(ll){if(pend)pend.setLatLng(ll);else pend=L.marker(ll,{icon:pinI('＋','new'),draggable:true}).addTo(map);$('#pmsg').textContent='ピンを立てました。情報を入力して「記録する」を押してください。'}
+function pins(){if(!grp)return;grp.clearLayers();D.pt.rows.forEach((r,i)=>{if(r.lat!=='')L.marker([r.lat,r.lon],{icon:pinI(i+1)}).bindPopup(`${r.sp} ×${r.cnt}`).addTo(grp)})}
+$('#pAdd').onclick=()=>{
+  const sp=$('#psp').value.trim(),m=$('#pmsg');if(!sp){m.textContent='種名を入力してください';return}
+  let ll,src;if(pend){ll=pend.getLatLng();src='ピン'}else if(cur){ll={lat:cur.lat,lng:cur.lon};src='現在地'}else{m.textContent='地図をタップしてピンを立ててください';return}
+  D.pt.rows.push({time:nowT(),sp,cnt:+$('#pcnt').value||1,how:$('#phow').value,sex:$('#psex').value,beh:$('#pbeh').value,dist:$('#pdist').value,memo:$('#pmemo').value,lat:+ll.lat.toFixed(6),lon:+ll.lng.toFixed(6),src});
+  save();if(pend){map.removeLayer(pend);pend=null}
+  $('#psp').value='';$('#pcnt').value=1;$('#pmemo').value='';$('#pdist').value='';m.textContent=`${D.pt.rows.length}件目を記録しました(${src})`;pins();prender();$('#psp').focus();
+};
+function pdel(i){if(confirm('この記録を削除しますか？')){D.pt.rows.splice(i,1);save();pins();prender()}}
+function prender(){
+  $('#pn').textContent=`(${D.pt.rows.length}件)`;
+  $('#pl').innerHTML=D.pt.rows.map((b,i)=>`<div class="item"><div><b>${i+1}. ${b.sp}</b> ×${b.cnt}<br>${b.time} ${b.how}・${b.beh}・${b.sex}${b.dist?'・'+b.dist+'m':''}${b.memo?'<br>'+b.memo:''}</div><button class="x" onclick="pdel(${i})">✕</button></div>`).reverse().join('')||'<p class="sub">まだ記録がありません。</p>';
+  $('#psum').textContent=`確認種数 ${new Set(D.pt.rows.map(b=>b.sp)).size} / 総個体数 ${D.pt.rows.reduce((a,b)=>a+b.cnt,0)}`;
+}
+const HPI=[['date','観察日'],['site','観測場所（山名）'],['members','観察者'],['start','開始時刻'],['end','終了時刻'],['weather','天気'],['wind','風'],['temp','気温(℃)'],['note','メモ']];
+const HPR=[['time','時刻'],['sp','種名'],['cnt','個体数'],['how','確認方法'],['sex','雌雄・成幼'],['beh','行動'],['dist','観察者からの距離(m)'],['lat','緯度'],['lon','経度'],['src','位置の取得方法'],['memo','メモ']];
+$('#pExp').onclick=async()=>{
+  if(!window.ExcelJS){alert('Excel出力ライブラリを読み込めませんでした。電波のある場所で開き直してください。');return}
+  const m=$('#pExpMsg');m.textContent='作成中…(地図の取得にはネット接続が必要です)';
+  try{
+    const wb=new ExcelJS.Workbook();
+    [['調査概要',tab(HPI,[D.pt.info],0)],['鳥記録',tab(HPR,D.pt.rows)]].forEach(([n,r])=>{const ws=wb.addWorksheet(n);if(!r.length)return;const h=Object.keys(r[0]);ws.columns=h.map(k=>({header:k,key:k,width:Math.max(8,k.length*2+2)}));ws.addRows(r);ws.getRow(1).font={bold:true};ws.views=[{state:'frozen',ySplit:1}]});
+    const url=await drawMap(D.pt.rows.map((r,i)=>({x:r.lon,y:r.lat,n:i+1,k:0}))),ws=wb.addWorksheet('地図');
+    if(url){ws.getCell('A1').value='● 記録地点(番号は鳥記録シートのNo.)';ws.addImage(wb.addImage({base64:url,extension:'png'}),{tl:{col:0,row:2},ext:{width:800,height:600}})}else ws.getCell('A1').value='記録がありません。';
+    const buf=await wb.xlsx.writeBuffer(),a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=outName(D.pt.info.date,D.pt.info.site,'PointCensus')+'.xlsx';a.click();
+    m.textContent='出力しました'+(mapMode==='plain'?'(地図を取得できず簡易プロットで出力)':'');
+  }catch(e){m.textContent='出力に失敗しました: '+e.message}
+};
+$('#pClr').onclick=()=>{if(confirm('定点観察の記録をすべて消去します。Excel出力は済んでいますか？')){D.pt={info:{date:new Date().toLocaleDateString('sv')},rows:[]};save();PI.forEach(k=>$('#p_'+k).value=D.pt.info[k]||'');pins();prender()}};
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body>
